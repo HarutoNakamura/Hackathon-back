@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -33,7 +32,7 @@ func main() {
 	}
 
 	// データベース接続設定
-	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@cloudsql(%s)/hackathon", os.Getenv("DATABASE_HOST"))
+	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
