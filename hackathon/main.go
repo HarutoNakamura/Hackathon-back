@@ -80,44 +80,6 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Post added"))
 }
 
-func getPostsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	rows, err := db.Query("SELECT id, email, content, created_at FROM posts ORDER BY created_at DESC")
-	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var posts []struct {
-		ID        int    `json:"id"`
-		Email     string `json:"email"`
-		Content   string `json:"content"`
-		CreatedAt string `json:"created_at"`
-	}
-
-	for rows.Next() {
-		var post struct {
-			ID        int
-			Email     string
-			Content   string
-			CreatedAt string
-		}
-		if err := rows.Scan(&post.ID, &post.Email, &post.Content, &post.CreatedAt); err != nil {
-			http.Error(w, "Row scan error", http.StatusInternalServerError)
-			return
-		}
-		posts = append(posts, post)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
-}
-
 func replyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -145,6 +107,44 @@ func replyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Reply added"))
 }
 
+func getPostsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query("SELECT id, email, content, created_at FROM posts ORDER BY created_at DESC")
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var posts []struct {
+		ID        int    `json:"id"`
+		Email     string `json:"email"`
+		Content   string `json:"content"`
+		CreatedAt string `json:"created_at"`
+	}
+
+	for rows.Next() {
+		var post struct {
+			ID        int    `json:"id"`
+			Email     string `json:"email"`
+			Content   string `json:"content"`
+			CreatedAt string `json:"created_at"`
+		}
+		if err := rows.Scan(&post.ID, &post.Email, &post.Content, &post.CreatedAt); err != nil {
+			http.Error(w, "Row scan error", http.StatusInternalServerError)
+			return
+		}
+		posts = append(posts, post)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(posts)
+}
+
 func getRepliesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -167,9 +167,9 @@ func getRepliesHandler(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var reply struct {
-			Email     string
-			Content   string
-			CreatedAt string
+			Email     string `json:"email"`
+			Content   string `json:"content"`
+			CreatedAt string `json:"created_at"`
 		}
 		if err := rows.Scan(&reply.Email, &reply.Content, &reply.CreatedAt); err != nil {
 			http.Error(w, "Row scan error", http.StatusInternalServerError)
