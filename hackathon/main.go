@@ -15,13 +15,21 @@ import (
 
 var db *sql.DB
 
-type Comment struct {
+type Post struct {
+	ID        int    `json:"id"`
+	Email     string `json:"email"`
+	Content   string `json:"content"`
+	LikeCount int    `json:"like_count"`
+}
+
+type Reply struct {
+	PostID  int    `json:"post_id"`
 	Email   string `json:"email"`
-	Comment string `json:"comment"`
+	Content string `json:"content"`
 }
 
 func main() {
-	// TLS証明書の設定
+	// TLS設定
 	rootCert := "./server-ca.pem"
 	clientCert := "./client-cert.pem"
 	clientKey := "./client-key.pem"
@@ -31,8 +39,8 @@ func main() {
 		log.Fatalf("Failed to register TLS config: %v", err)
 	}
 
-	// データベース接続設定
-	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
+	// データベース接続
+	dsn := fmt.Sprintf("root:password@tcp(your-db-host:3306)/hackathon?tls=custom")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -40,66 +48,137 @@ func main() {
 	defer db.Close()
 
 	// ルーティング
-	http.HandleFunc("/api/comments/post", corsMiddleware(postCommentHandler))
-	http.HandleFunc("/api/comments/get", corsMiddleware(getCommentsHandler))
+	http.HandleFunc("/api/posts/create", corsMiddleware(createPostHandler))
+	http.HandleFunc("/api/posts/get", corsMiddleware(getPostsHandler))
+	http.HandleFunc("/api/replies/add", corsMiddleware(addReplyHandler))
+	http.HandleFunc("/api/likes/toggle", corsMiddleware(toggleLikeHandler))
 
-	log.Println("Backend server is running on port 8081")
-	log.Println(db.Query("SHOW TABLES"))
+	log.Println("Server is running on port 8081")
 	http.ListenAndServe(":8081", nil)
 }
 
-// コメント投稿処理
-func postCommentHandler(w http.ResponseWriter, r *http.Request) {
+// 投稿作成
+func createPostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var comment Comment
-	if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
+	var post Post
+	if err := json.NewDecoder(r.Body).Decode(&post); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
-	_, err := db.Exec("INSERT INTO comments (email, comment) VALUES (?, ?)", comment.Email, comment.Comment)
+	_, err := db.Exec("INSERT INTO posts (email, content) VALUES (?, ?)", post.Email, post.Content)
 	if err != nil {
-		log.Printf("Database error: %v", err) // Log database error for debugging
+		log.Printf("Database error: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Comment added"))
 }
 
-// コメント取得処理
-func getCommentsHandler(w http.ResponseWriter, r *http.Request) {
+// 投稿取得
+func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	rows, err := db.Query("SELECT email, comment FROM comments ORDER BY id DESC")
+	rows, err := db.Query(`
+		SELECT posts.id, posts.email, posts.content, COUNT(likes.id) AS like_count
+		FROM posts
+		LEFT JOIN likes ON posts.id = likes.post_id
+		GROUP BY posts.id
+		ORDER BY posts.created_at DESC
+	`)
 	if err != nil {
-		log.Printf("Database error: %v", err) // Log database error for debugging
+		log.Printf("Database error: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var comments []Comment
+	var posts []Post
 	for rows.Next() {
-		var comment Comment
-		if err := rows.Scan(&comment.Email, &comment.Comment); err != nil {
-			log.Printf("Row scan error: %v", err) // Log row scan error
+		var post Post
+		if err := rows.Scan(&post.ID, &post.Email, &post.Content, &post.LikeCount); err != nil {
+			log.Printf("Row scan error: %v", err)
 			http.Error(w, "Row scan error", http.StatusInternalServerError)
 			return
 		}
-		comments = append(comments, comment)
+		posts = append(posts, post)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+	json.NewEncoder(w).Encode(posts)
+}
+
+// リプライ追加
+func addReplyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var reply Reply
+	if err := json.NewDecoder(r.Body).Decode(&reply); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("INSERT INTO replies (post_id, email, content) VALUES (?, ?, ?)", reply.PostID, reply.Email, reply.Content)
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// いいねトグル
+func toggleLikeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var data struct {
+		PostID int    `json:"post_id"`
+		Email  string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	// いいねの存在を確認
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", data.PostID, data.Email).Scan(&exists)
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if exists {
+		// いいね削除
+		_, err = db.Exec("DELETE FROM likes WHERE post_id = ? AND email = ?", data.PostID, data.Email)
+	} else {
+		// いいね追加
+		_, err = db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", data.PostID, data.Email)
+	}
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // CORSミドルウェア
@@ -118,7 +197,7 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// TLS設定の登録
+// TLS設定
 func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	rootCertPool := x509.NewCertPool()
 	pem, err := ioutil.ReadFile(rootCert)
@@ -135,9 +214,8 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	}
 
 	mysql.RegisterTLSConfig(name, &tls.Config{
-		RootCAs:            rootCertPool,
-		Certificates:       []tls.Certificate{clientCertPair},
-		InsecureSkipVerify: true,
+		RootCAs:      rootCertPool,
+		Certificates: []tls.Certificate{clientCertPair},
 	})
 	return nil
 }
