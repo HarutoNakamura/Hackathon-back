@@ -206,14 +206,31 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", like.PostID, like.Email)
+	// いいねが存在するか確認
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", like.PostID, like.Email).Scan(&exists)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Like added"))
+	if exists {
+		// 存在する場合は削除
+		_, err := db.Exec("DELETE FROM likes WHERE post_id = ? AND email = ?", like.PostID, like.Email)
+		if err != nil {
+			http.Error(w, "Failed to remove like", http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("Like removed"))
+	} else {
+		// 存在しない場合は追加
+		_, err := db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", like.PostID, like.Email)
+		if err != nil {
+			http.Error(w, "Failed to add like", http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("Like added"))
+	}
 }
 
 func getLikesHandler(w http.ResponseWriter, r *http.Request) {
