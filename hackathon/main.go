@@ -87,7 +87,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, post := range input.Posts {
 		prompt := fmt.Sprintf(
-			"次の文章は「%s」と関連がありますか？関連があれば'yes'と答え、なければ'no'と答えてください。\n%s",
+			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。\n%s",
 			input.Topic,
 			post.Content,
 		)
@@ -96,11 +96,23 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "AI inference failed", http.StatusInternalServerError)
 			return
 		}
-		fmt.Printf("%T\n", response.Candidates[0].Content.Parts[0])
 
-		// if len(response.Candidates) > 0 && response.Candidates[0].Content.Parts[0] == "yes\n" {
-		// 	relevantPostIDs = append(relevantPostIDs, post.ID)
-		// }
+		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+			part := response.Candidates[0].Content.Parts[0]
+
+			switch v := part.(type) {
+			case genai.Text:
+				if v == "yes\n" {
+					relevantPostIDs = append(relevantPostIDs, post.ID)
+				} else {
+					if v != "no\n" {
+						fmt.Println("Response invalid:", v)
+					}
+				}
+			default:
+				fmt.Println("Response invalid:", v)
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
