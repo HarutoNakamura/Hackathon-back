@@ -113,7 +113,21 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query("SELECT id, email, content, created_at FROM posts ORDER BY created_at DESC")
+	query := `
+		SELECT 
+			posts.id, posts.email, posts.content, posts.created_at, 
+			IFNULL(like_counts.like_count, 0) AS like_count 
+		FROM posts
+		LEFT JOIN (
+			SELECT post_id, COUNT(*) AS like_count
+			FROM likes
+			GROUP BY post_id
+		) AS like_counts
+		ON posts.id = like_counts.post_id
+		ORDER BY posts.created_at DESC
+	`
+
+	rows, err := db.Query(query)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -125,6 +139,7 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 		Email     string `json:"email"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
+		Likes     int    `json:"likes"`
 	}
 
 	for rows.Next() {
@@ -133,8 +148,9 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 			Email     string `json:"email"`
 			Content   string `json:"content"`
 			CreatedAt string `json:"created_at"`
+			Likes     int    `json:"likes"`
 		}
-		if err := rows.Scan(&post.ID, &post.Email, &post.Content, &post.CreatedAt); err != nil {
+		if err := rows.Scan(&post.ID, &post.Email, &post.Content, &post.CreatedAt, &post.Likes); err != nil {
 			http.Error(w, "Row scan error", http.StatusInternalServerError)
 			return
 		}
