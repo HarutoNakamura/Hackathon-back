@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -11,17 +10,10 @@ import (
 	"log"
 	"net/http"
 
-	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
-
-const (
-	location  = "asia-northeast1"
-	modelName = "gemini-1.5-flash-002"
-	projectID = "term6-haruto-nakamura-441801"
-)
 
 func main() {
 	// TLS証明書の設定
@@ -49,77 +41,9 @@ func main() {
 	http.HandleFunc("/api/replies/get", corsMiddleware(getRepliesHandler))
 	http.HandleFunc("/api/likes/add", corsMiddleware(likeHandler))
 	http.HandleFunc("/api/likes/get", corsMiddleware(getLikesHandler))
-	http.HandleFunc("/api/posts/filter", corsMiddleware(filterPostsHandler))
 
 	log.Println("Backend server is running on port 8081")
 	http.ListenAndServe(":8081", nil)
-}
-
-func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var input struct {
-		Topic string `json:"topic"`
-		Posts []struct {
-			ID      int    `json:"id"`
-			Content string `json:"content"`
-		} `json:"posts"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		log.Printf("Error decoding request body: %v", err)
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	// Use Gemini for relevance analysis
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, projectID, location)
-	if err != nil {
-		log.Printf("Error initializing Gemini client: %v", err)
-		http.Error(w, "AI client initialization failed", http.StatusInternalServerError)
-		return
-	}
-
-	gemini := client.GenerativeModel(modelName)
-	var relevantPostIDs []int
-
-	for _, post := range input.Posts {
-		prompt := fmt.Sprintf(
-			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。\n%s",
-			input.Topic,
-			post.Content,
-		)
-		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
-		if err != nil {
-			log.Printf("Error generating content from Gemini: %v", err)
-			http.Error(w, "AI inference failed", http.StatusInternalServerError)
-			return
-		}
-
-		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
-			part := response.Candidates[0].Content.Parts[0]
-
-			switch v := part.(type) {
-			case genai.Text:
-				if v == "yes\n" {
-					relevantPostIDs = append(relevantPostIDs, post.ID)
-				} else {
-					if v != "no\n" {
-						log.Printf("Invalid response from AI: %v", v)
-					}
-				}
-			default:
-				log.Printf("Unexpected AI response: %v", v)
-			}
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(relevantPostIDs)
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request) {
@@ -282,31 +206,14 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// いいねが存在するか確認
-	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", like.PostID, like.Email).Scan(&exists)
+	_, err := db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", like.PostID, like.Email)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	if exists {
-		// 存在する場合は削除
-		_, err := db.Exec("DELETE FROM likes WHERE post_id = ? AND email = ?", like.PostID, like.Email)
-		if err != nil {
-			http.Error(w, "Failed to remove like", http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte("Like removed"))
-	} else {
-		// 存在しない場合は追加
-		_, err := db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", like.PostID, like.Email)
-		if err != nil {
-			http.Error(w, "Failed to add like", http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte("Like added"))
-	}
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Like added"))
 }
 
 func getLikesHandler(w http.ResponseWriter, r *http.Request) {
@@ -361,8 +268,9 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	}
 
 	mysql.RegisterTLSConfig(name, &tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: []tls.Certificate{clientCertPair},
+		RootCAs:            rootCertPool,
+		Certificates:       []tls.Certificate{clientCertPair},
+		InsecureSkipVerify: true,
 	})
 	return nil
 }
