@@ -70,6 +70,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		log.Printf("Error decoding request body: %v", err) // 追加
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
@@ -78,6 +79,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, projectID, location)
 	if err != nil {
+		log.Printf("Error initializing Gemini client: %v", err) // 追加
 		http.Error(w, "AI client initialization failed", http.StatusInternalServerError)
 		return
 	}
@@ -93,6 +95,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
 		if err != nil {
+			log.Printf("Error generating content from Gemini: %v", err) // 追加
 			http.Error(w, "AI inference failed", http.StatusInternalServerError)
 			return
 		}
@@ -106,11 +109,11 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 					relevantPostIDs = append(relevantPostIDs, post.ID)
 				} else {
 					if v != "no\n" {
-						fmt.Println("Response invalid:", v)
+						log.Printf("Invalid response from AI: %v", v) // 追加
 					}
 				}
 			default:
-				fmt.Println("Response invalid:", v)
+				log.Printf("Unexpected AI response: %v", v) // 追加
 			}
 		}
 	}
