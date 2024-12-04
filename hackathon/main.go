@@ -36,8 +36,7 @@ func main() {
 	}
 
 	// データベース接続設定
-	//dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
-	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(p297164197657-drl8y4@gcp-sa-cloud-sql.iam.gserviceaccount.com)/hackathon?tls=custom")
+	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
