@@ -199,6 +199,7 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query(query)
 	if err != nil {
+		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -240,6 +241,7 @@ func getRepliesHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.URL.Query().Get("post_id")
 	rows, err := db.Query("SELECT email, content, created_at FROM replies WHERE post_id = ? ORDER BY created_at DESC", postID)
 	if err != nil {
+		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -288,6 +290,7 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", like.PostID, like.Email).Scan(&exists)
 	if err != nil {
+		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -322,6 +325,7 @@ func getLikesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var likeCount int
 	if err := row.Scan(&likeCount); err != nil {
+		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
