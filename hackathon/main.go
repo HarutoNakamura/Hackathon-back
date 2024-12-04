@@ -361,8 +361,9 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	}
 
 	mysql.RegisterTLSConfig(name, &tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: []tls.Certificate{clientCertPair},
+		RootCAs:            rootCertPool,
+		Certificates:       []tls.Certificate{clientCertPair},
+		InsecureSkipVerify: true,
 	})
 	return nil
 }
