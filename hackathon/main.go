@@ -168,6 +168,7 @@ func replyHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.Exec("INSERT INTO replies (post_id, email, content) VALUES (?, ?, ?)", reply.PostID, reply.Email, reply.Content)
 	if err != nil {
+		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
