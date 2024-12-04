@@ -18,7 +18,8 @@ import (
 var db *sql.DB
 
 const (
-	location  = "us-central1"
+	location = "us-central1"
+	//location  = "asia-northeast1"
 	modelName = "gemini-1.5-flash-002"
 	projectID = "term6-haruto-nakamura-441801" // ① 自分のプロジェクトIDを指定する
 )
@@ -361,8 +362,9 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	}
 
 	mysql.RegisterTLSConfig(name, &tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: []tls.Certificate{clientCertPair},
+		RootCAs:            rootCertPool,
+		Certificates:       []tls.Certificate{clientCertPair},
+		InsecureSkipVerify: true,
 	})
 	return nil
 }
