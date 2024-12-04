@@ -10,9 +10,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 var db *sql.DB
@@ -25,23 +27,43 @@ const (
 )
 
 func main() {
-	// TLS証明書の設定
-	rootCert := "./server-ca.pem"
-	clientCert := "./client-cert.pem"
-	clientKey := "./client-key.pem"
-
-	err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Failed to register TLS config: %v", err)
+		log.Fatal("Error loading .env file")
 	}
 
-	// データベース接続設定
-	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
-	db, err = sql.Open("mysql", dsn)
+	dbUser := os.Getenv("MYSQL_USER")
+	dbPassword := os.Getenv("MYSQL_PASSWORD")
+	dbHost := os.Getenv("MYSQL_HOST")
+	dbName := os.Getenv("MYSQL_NAME")
+
+	// DSN（データソースネーム）を作成
+	dsn := fmt.Sprintf("%s:%s@%s/%s", dbUser, dbPassword, dbHost, dbName)
+
+	// MySQLに接続
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to MySQL: %v", err)
 	}
 	defer db.Close()
+
+	// TLS証明書の設定
+	// rootCert := "./server-ca.pem"
+	// clientCert := "./client-cert.pem"
+	// clientKey := "./client-key.pem"
+
+	// err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
+	// if err != nil {
+	// 	log.Fatalf("Failed to register TLS config: %v", err)
+	// }
+
+	// データベース接続設定
+	// dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
+	// db, err = sql.Open("mysql", dsn)
+	// if err != nil {
+	// 	log.Fatalf("Failed to connect to database: %v", err)
+	// }
+	// defer db.Close()
 
 	// ルーティング
 	http.HandleFunc("/api/posts/create", corsMiddleware(postHandler))
@@ -367,8 +389,9 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	}
 
 	mysql.RegisterTLSConfig(name, &tls.Config{
-		RootCAs:      rootCertPool,
-		Certificates: []tls.Certificate{clientCertPair},
+		RootCAs:            rootCertPool,
+		Certificates:       []tls.Certificate{clientCertPair},
+		InsecureSkipVerify: true,
 	})
 	return nil
 }
