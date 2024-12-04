@@ -21,4 +21,5 @@ COPY --from=builder /app/main .
 COPY ./server-ca.pem ./client-cert.pem ./client-key.pem ./
 
 # アプリケーションを実行
+EXPOSE 8081
 CMD ["./main"]

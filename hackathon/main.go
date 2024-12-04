@@ -38,7 +38,7 @@ func main() {
 	dbName := os.Getenv("MYSQL_NAME")
 
 	// DSN（データソースネーム）を作成
-	dsn := fmt.Sprintf("%s:%s@%s/%s", dbUser, dbPassword, dbHost, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
 
 	// MySQLに接続
 	db, err := sql.Open("mysql", dsn)
