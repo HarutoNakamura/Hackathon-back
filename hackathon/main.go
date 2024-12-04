@@ -75,7 +75,7 @@ func main() {
 	http.HandleFunc("/api/posts/filter", corsMiddleware(filterPostsHandler))
 
 	log.Println("Backend server is running on port 8081")
-	http.ListenAndServe(":8081", nil)
+	http.ListenAndServe(":8080", nil)
 }
 
 func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
