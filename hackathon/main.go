@@ -18,7 +18,7 @@ import (
 var db *sql.DB
 
 const (
-	location  = "asia-northeast1"
+	location  = "us-central1"
 	modelName = "gemini-1.5-flash-002"
 	projectID = "term6-haruto-nakamura-441801" // ① 自分のプロジェクトIDを指定する
 )
