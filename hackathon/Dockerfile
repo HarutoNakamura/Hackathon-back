@@ -18,8 +18,7 @@ WORKDIR /app
 
 # 必要なファイルをコピー
 COPY --from=builder /app/main .
-#COPY ./server-ca.pem ./client-cert.pem ./client-key.pem ./
+COPY ./server-ca.pem ./client-cert.pem ./client-key.pem ./
 
 # アプリケーションを実行
-EXPOSE 8080
 CMD ["./main"]

@@ -10,61 +10,37 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
 )
 
 var db *sql.DB
 
 const (
-	location = "us-central1"
-	//location  = "asia-northeast1"
+	location  = "asia-northeast1"
 	modelName = "gemini-1.5-flash-002"
-	projectID = "term6-haruto-nakamura-441801" // ① 自分のプロジェクトIDを指定する
+	projectID = "term6-haruto-nakamura-441801"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Print("Error loading .env file")
-	}
-
-	dbUser := os.Getenv("MYSQL_USER")
-	dbPassword := os.Getenv("MYSQL_PASSWORD")
-	dbHost := os.Getenv("MYSQL_HOST")
-	dbName := os.Getenv("MYSQL_NAME")
-
-	// DSN（データソースネーム）を作成
-	dsn := fmt.Sprintf("%s:%s@%s/%s", dbUser, dbPassword, dbHost, dbName)
-	log.Printf("dsn:%s", dsn)
-
-	// MySQLに接続
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		log.Fatalf("Failed to connect to MySQL: %v", err)
-	}
-	defer db.Close()
-
 	// TLS証明書の設定
-	// rootCert := "./server-ca.pem"
-	// clientCert := "./client-cert.pem"
-	// clientKey := "./client-key.pem"
+	rootCert := "./server-ca.pem"
+	clientCert := "./client-cert.pem"
+	clientKey := "./client-key.pem"
 
-	// err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
-	// if err != nil {
-	// 	log.Fatalf("Failed to register TLS config: %v", err)
-	// }
+	err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
+	if err != nil {
+		log.Fatalf("Failed to register TLS config: %v", err)
+	}
 
 	// データベース接続設定
-	// dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
-	// db, err = sql.Open("mysql", dsn)
-	// if err != nil {
-	// 	log.Fatalf("Failed to connect to database: %v", err)
-	// }
-	// defer db.Close()
+	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
+	db, err = sql.Open("mysql", dsn)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
 
 	// ルーティング
 	http.HandleFunc("/api/posts/create", corsMiddleware(postHandler))
@@ -76,7 +52,7 @@ func main() {
 	http.HandleFunc("/api/posts/filter", corsMiddleware(filterPostsHandler))
 
 	log.Println("Backend server is running on port 8081")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8081", nil)
 }
 
 func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +167,6 @@ func replyHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.Exec("INSERT INTO replies (post_id, email, content) VALUES (?, ?, ?)", reply.PostID, reply.Email, reply.Content)
 	if err != nil {
-		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -222,7 +197,6 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query(query)
 	if err != nil {
-		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -264,7 +238,6 @@ func getRepliesHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.URL.Query().Get("post_id")
 	rows, err := db.Query("SELECT email, content, created_at FROM replies WHERE post_id = ? ORDER BY created_at DESC", postID)
 	if err != nil {
-		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -313,7 +286,6 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", like.PostID, like.Email).Scan(&exists)
 	if err != nil {
-		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -348,7 +320,6 @@ func getLikesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var likeCount int
 	if err := row.Scan(&likeCount); err != nil {
-		log.Println(err, http.StatusInternalServerError)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
