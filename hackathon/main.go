@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
+	"google.golang.org/api/option"
 )
 
 var db *sql.DB
@@ -55,6 +56,14 @@ func main() {
 	http.ListenAndServe(":8081", nil)
 }
 
+func createVertexAIClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
+	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile("./term6-haruto-nakamura-441801-833bfe9523d6.json"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize Vertex AI client: %w", err)
+	}
+	return client, nil
+}
+
 func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -70,16 +79,16 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		log.Printf("Error decoding request body: %v", err) // 追加
+		log.Printf("Error decoding request body: %v", err)
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
-	// Use Gemini for relevance analysis
+	// Create Vertex AI client
 	ctx := context.Background()
-	client, err := genai.NewClient(ctx, projectID, location)
+	client, err := createVertexAIClient(ctx, projectID, location)
 	if err != nil {
-		log.Printf("Error initializing Gemini client: %v", err) // 追加
+		log.Printf("Error initializing Vertex AI client: %v", err)
 		http.Error(w, "AI client initialization failed", http.StatusInternalServerError)
 		return
 	}
@@ -95,25 +104,21 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
 		if err != nil {
-			log.Printf("Error generating content from Gemini: %v", err) // 追加
+			log.Printf("Error generating content from Gemini: %v", err)
 			http.Error(w, "AI inference failed", http.StatusInternalServerError)
 			return
 		}
 
+		log.Printf("Prompt sent to Gemini: %s", prompt)
 		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
-			part := response.Candidates[0].Content.Parts[0]
-
-			switch v := part.(type) {
-			case genai.Text:
-				if v == "yes\n" {
+			if text, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				if text == "yes\n" {
 					relevantPostIDs = append(relevantPostIDs, post.ID)
-				} else {
-					if v != "no\n" {
-						log.Printf("Invalid response from AI: %v", v) // 追加
-					}
+				} else if text != "no\n" {
+					log.Printf("Unexpected AI response: %v", text)
 				}
-			default:
-				log.Printf("Unexpected AI response: %v", v) // 追加
+			} else {
+				log.Printf("AI response is not text: %v", response.Candidates[0].Content.Parts[0])
 			}
 		}
 	}
