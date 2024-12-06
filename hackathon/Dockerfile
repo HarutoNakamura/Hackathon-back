@@ -18,7 +18,7 @@ WORKDIR /app
 
 # 必要なファイルをコピー
 COPY --from=builder /app/main .
-COPY ./server-ca.pem ./client-cert.pem ./client-key.pem ./term6-haruto-nakamura-441801-833bfe9523d6.json ./
+COPY ./server-ca.pem ./client-cert.pem ./client-key.pem ./
 
 # アプリケーションを実行
 CMD ["./main"]
