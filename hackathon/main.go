@@ -25,18 +25,18 @@ const (
 
 func main() {
 	// TLS証明書の設定
-	rootCert := "./server-ca.pem"
-	clientCert := "./client-cert.pem"
-	clientKey := "./client-key.pem"
+	// rootCert := "./server-ca.pem"
+	// clientCert := "./client-cert.pem"
+	// clientKey := "./client-key.pem"
 
-	err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
-	if err != nil {
-		log.Fatalf("Failed to register TLS config: %v", err)
-	}
+	// err := RegisterTLSConfig("custom", rootCert, clientCert, clientKey)
+	// if err != nil {
+	// 	log.Fatalf("Failed to register TLS config: %v", err)
+	// }
 
 	// データベース接続設定
 	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
-	db, err = sql.Open("mysql", dsn)
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
