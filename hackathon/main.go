@@ -62,8 +62,22 @@ func createVertexAIClient(ctx context.Context, projectID, location string) (*gen
 	if credentialsJSON == "" {
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
-	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
-	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON([]byte(credentialsJSON)))
+
+	// HTTPクライアントに証明書検証を無効にする設定を追加
+	client, err := genai.NewClient(
+		ctx,
+		projectID,
+		location,
+		option.WithCredentialsJSON([]byte(credentialsJSON)),
+		option.WithHTTPClient(&http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, // 証明書検証を無効にする
+				},
+			},
+		}),
+	)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Vertex AI client: %w", err)
 	}
@@ -111,7 +125,6 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
 		if err != nil {
 			log.Printf("Error generating content from Gemini: %v", err)
-			log.Print("1")
 			http.Error(w, "AI inference failed", http.StatusInternalServerError)
 			return
 		}
