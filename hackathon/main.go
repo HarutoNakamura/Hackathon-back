@@ -15,6 +15,8 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var db *sql.DB
@@ -63,19 +65,21 @@ func createVertexAIClient(ctx context.Context, projectID, location string) (*gen
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
 
-	// HTTPクライアントに証明書検証を無効にする設定を追加
+	// gRPCクライアントのTLS設定を行う
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true, // 証明書検証を無効にする
+	}
+
+	// gRPCのTransportCredentialsを作成
+	creds := credentials.NewTLS(tlsConfig)
+
+	// gRPCのダイヤルオプションにTLS設定を適用
 	client, err := genai.NewClient(
 		ctx,
 		projectID,
 		location,
 		option.WithCredentialsJSON([]byte(credentialsJSON)),
-		option.WithHTTPClient(&http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // 証明書検証を無効にする
-				},
-			},
-		}),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)), // gRPCのTLS設定
 	)
 
 	if err != nil {
