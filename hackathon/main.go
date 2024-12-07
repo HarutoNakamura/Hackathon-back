@@ -28,7 +28,6 @@ const (
 )
 
 func main() {
-	//TLS証明書の設定
 	rootCert := "./server-ca.pem"
 	clientCert := "./client-cert.pem"
 	clientKey := "./client-key.pem"
@@ -38,7 +37,6 @@ func main() {
 		log.Fatalf("Failed to register TLS config: %v", err)
 	}
 
-	// データベース接続設定
 	dsn := fmt.Sprintf("root:rxVqTvN7XkP5UZ@tcp(35.226.119.65:3306)/hackathon?tls=custom")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
@@ -46,7 +44,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// ルーティング
 	http.HandleFunc("/api/posts/create", corsMiddleware(postHandler))
 	http.HandleFunc("/api/posts/get", corsMiddleware(getPostsHandler))
 	http.HandleFunc("/api/replies/create", corsMiddleware(replyHandler))
@@ -65,21 +62,16 @@ func createVertexAIClient(ctx context.Context, projectID, location string) (*gen
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
 
-	// gRPCクライアントのTLS設定を行う
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true, // 証明書検証を無効にする
+		InsecureSkipVerify: true,
 	}
-
-	// gRPCのTransportCredentialsを作成
 	creds := credentials.NewTLS(tlsConfig)
-
-	// gRPCのダイヤルオプションにTLS設定を適用
 	client, err := genai.NewClient(
 		ctx,
 		projectID,
 		location,
 		option.WithCredentialsJSON([]byte(credentialsJSON)),
-		option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)), // gRPCのTLS設定
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)),
 	)
 
 	if err != nil {
@@ -108,7 +100,6 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create Vertex AI client
 	ctx := context.Background()
 	client, err := createVertexAIClient(ctx, projectID, location)
 	if err != nil {
@@ -311,7 +302,6 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// いいねが存在するか確認
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ? AND email = ?)", like.PostID, like.Email).Scan(&exists)
 	if err != nil {
@@ -320,7 +310,6 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if exists {
-		// 存在する場合は削除
 		_, err := db.Exec("DELETE FROM likes WHERE post_id = ? AND email = ?", like.PostID, like.Email)
 		if err != nil {
 			http.Error(w, "Failed to remove like", http.StatusInternalServerError)
@@ -328,7 +317,6 @@ func likeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte("Like removed"))
 	} else {
-		// 存在しない場合は追加
 		_, err := db.Exec("INSERT INTO likes (post_id, email) VALUES (?, ?)", like.PostID, like.Email)
 		if err != nil {
 			http.Error(w, "Failed to add like", http.StatusInternalServerError)
@@ -357,7 +345,6 @@ func getLikesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"like_count": likeCount})
 }
 
-// CORSミドルウェア
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -373,7 +360,6 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// TLS設定の登録
 func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	rootCertPool := x509.NewCertPool()
 	pem, err := ioutil.ReadFile(rootCert)
