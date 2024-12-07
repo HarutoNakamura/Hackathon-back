@@ -58,12 +58,13 @@ func main() {
 }
 
 func createVertexAIClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
-	credentialsPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	if credentialsPath == "" {
+	credentialsJSON := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if credentialsJSON == "" {
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
-
-	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile(credentialsPath))
+	log.Print([]byte(credentialsJSON))
+	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
+	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON([]byte(credentialsJSON)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Vertex AI client: %w", err)
 	}
@@ -374,7 +375,7 @@ func RegisterTLSConfig(name, rootCert, clientCert, clientKey string) error {
 	mysql.RegisterTLSConfig(name, &tls.Config{
 		RootCAs:            rootCertPool,
 		Certificates:       []tls.Certificate{clientCertPair},
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: false,
 	})
 	return nil
 }
