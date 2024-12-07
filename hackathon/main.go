@@ -62,6 +62,7 @@ func createVertexAIClient(ctx context.Context, projectID, location string) (*gen
 	if credentialsJSON == "" {
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
+	log.Print([]byte(credentialsJSON))
 	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
 	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON([]byte(credentialsJSON)))
 	if err != nil {
