@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/go-sql-driver/mysql"
@@ -57,7 +58,8 @@ func main() {
 }
 
 func createVertexAIClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
-	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile("GOOGLE_APPLICATION_CREDENTIALS"))
+	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
+	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile("GOOGLE_APPLICATION_CREDENTIALS"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Vertex AI client: %w", err)
 	}
