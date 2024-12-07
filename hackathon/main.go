@@ -62,7 +62,6 @@ func createVertexAIClient(ctx context.Context, projectID, location string) (*gen
 	if credentialsJSON == "" {
 		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
 	}
-	log.Print([]byte(credentialsJSON))
 	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
 	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON([]byte(credentialsJSON)))
 	if err != nil {
@@ -112,6 +111,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
 		if err != nil {
 			log.Printf("Error generating content from Gemini: %v", err)
+			log.Print("1")
 			http.Error(w, "AI inference failed", http.StatusInternalServerError)
 			return
 		}
