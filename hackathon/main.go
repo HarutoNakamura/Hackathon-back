@@ -58,9 +58,12 @@ func main() {
 }
 
 func createVertexAIClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
-	log.Printf("GOOGLE_APPLICATION_CREDENTIALS: %s\n", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
-	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsFile("GOOGLE_APPLICATION_CREDENTIALS"))
+	credentialsJSON := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if credentialsJSON == "" {
+		log.Fatal("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or empty")
+	}
+	//client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
+	client, err := genai.NewClient(ctx, projectID, location, option.WithCredentialsJSON([]byte(credentialsJSON)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Vertex AI client: %w", err)
 	}
