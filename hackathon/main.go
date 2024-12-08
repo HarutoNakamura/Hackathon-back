@@ -51,6 +51,7 @@ func main() {
 	http.HandleFunc("/api/likes/add", corsMiddleware(likeHandler))
 	http.HandleFunc("/api/likes/get", corsMiddleware(getLikesHandler))
 	http.HandleFunc("/api/posts/filter", corsMiddleware(filterPostsHandler))
+	http.HandleFunc("/api/posts/filter2", corsMiddleware(filterPostsHandler2))
 
 	log.Println("Backend server is running on port 8081")
 	http.ListenAndServe(":8081", nil)
@@ -130,6 +131,68 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 				if text == "yes\n" {
 					relevantPostIDs = append(relevantPostIDs, post.ID)
 				} else if text != "no\n" {
+					log.Printf("Unexpected AI response: %v", text)
+				}
+			} else {
+				log.Printf("AI response is not text: %v", response.Candidates[0].Content.Parts[0])
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(relevantPostIDs)
+}
+
+func filterPostsHandler2(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var input struct {
+		Topic string `json:"topic"`
+		Posts []struct {
+			ID      int    `json:"id"`
+			Content string `json:"content"`
+		} `json:"posts"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	client, err := createVertexAIClient(ctx, projectID, location)
+	if err != nil {
+		log.Printf("Error initializing Vertex AI client: %v", err)
+		http.Error(w, "AI client initialization failed", http.StatusInternalServerError)
+		return
+	}
+
+	gemini := client.GenerativeModel(modelName)
+	var relevantPostIDs []int
+
+	for _, post := range input.Posts {
+		prompt := fmt.Sprintf(
+			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。\n%s",
+			input.Topic,
+			post.Content,
+		)
+		response, err := gemini.GenerateContent(ctx, genai.Text(prompt))
+		if err != nil {
+			log.Printf("Error generating content from Gemini: %v", err)
+			http.Error(w, "AI inference failed", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Prompt sent to Gemini: %s", prompt)
+		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+			if text, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				if text == "no\n" {
+					relevantPostIDs = append(relevantPostIDs, post.ID)
+				} else if text != "yes\n" {
 					log.Printf("Unexpected AI response: %v", text)
 				}
 			} else {
