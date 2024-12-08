@@ -114,7 +114,7 @@ func filterPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, post := range input.Posts {
 		prompt := fmt.Sprintf(
-			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。\n%s",
+			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。%s",
 			input.Topic,
 			post.Content,
 		)
@@ -176,7 +176,7 @@ func filterPostsHandler2(w http.ResponseWriter, r *http.Request) {
 
 	for _, post := range input.Posts {
 		prompt := fmt.Sprintf(
-			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。\n%s",
+			"次の文章は「%s」と関連がありますか？関連があれば'yes'とだけ答え、なければ'no'とだけ答えてください。%s",
 			input.Topic,
 			post.Content,
 		)
